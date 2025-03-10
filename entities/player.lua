@@ -67,9 +67,9 @@ function Player:init(screenWidth, screenHeight, particleSystem)
 	self.y = (screenHeight - self.height) / 2
 end
 
-function Player:takeDamage()
+function Player:takeDamage(stopTheBgMusic)
 	self.healthSystem:damage()
-	self:checkIfDead()
+	self:checkIfDead(stopTheBgMusic)
 	self.damageFlashTimer = 0.2
 end
 
@@ -143,9 +143,10 @@ function Player:animateMovement(dt)
 	end
 end
 
-function Player:checkIfDead()
+function Player:checkIfDead(stopTheBgMusic)
 	if self.healthSystem.health <= 0 and not self.isDead then
 		self.isDead = true -- Set to dead only once
+		stopTheBgMusic()
 	end
 	-- Emit explosion particles ONCE
 	if self.particleSystem then

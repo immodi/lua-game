@@ -66,7 +66,9 @@ function love.update(dt)
 			enemy:destroy(enemies, ParticleSystem.activeExplosions, ParticleSystem.ps, function()
 				Camera:shake()
 			end, true)
-			Player:takeDamage()
+			Player:takeDamage(function()
+				BgMusic:switchTracks()
+			end)
 		end
 	end
 
@@ -177,4 +179,5 @@ function love.reset()
 	Freeze:reset()
 	Player:reset()
 	Score:reset()
+	BgMusic:reset()
 end
