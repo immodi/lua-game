@@ -7,8 +7,12 @@ local ParticleSystem = require("helpers.particles")
 local Freeze = require("helpers.freeze")
 local Score = require("helpers.score")
 local BgMusic = require("helpers.bg_music")
-local enemies = {}
-local spawnTimer = 0.5
+local enemiesState = {
+	enemies = {},
+	defaultSpawnTimer = Enemy.defaultSpawnTimer,
+	spawnTimer = Enemy.defaultSpawnTimer,
+	MAX_DIFICULTY_TIMER = 0.4,
+}
 local shootDelay = 0.1
 local freezeTimer = 1
 local isMouseVisible = false
@@ -28,10 +32,21 @@ end
 function love.update(dt)
 	local screenWidth, screenHeight = love.graphics.getDimensions()
 	love.mouse.setVisible(isMouseVisible)
-	spawnTimer = spawnTimer - dt
+	enemiesState.spawnTimer = enemiesState.spawnTimer - dt
 	shootDelay = shootDelay - dt
 	Background:animate(dt)
 	Score:update(dt)
+
+	if enemiesState.lastCheckedScore == nil then
+		enemiesState.lastCheckedScore = 0
+	end
+
+	if Score.value % 100 == 0 and Score.value ~= 0 and Score.value ~= enemiesState.lastCheckedScore then
+		if enemiesState.defaultSpawnTimer > enemiesState.MAX_DIFICULTY_TIMER then
+			enemiesState.defaultSpawnTimer = math.max(0.1, enemiesState.defaultSpawnTimer - 0.1)
+		end
+		enemiesState.lastCheckedScore = Score.value
+	end
 
 	if Player.healthSystem.health <= 0 then
 		love.freeze(freezeTimer)
@@ -48,22 +63,25 @@ function love.update(dt)
 
 	Player:move(dt)
 	Player:broderPhysics(screenWidth, screenHeight)
-
+	Player:laser(enemiesState.enemies, ParticleSystem.activeExplosions, ParticleSystem.ps, function()
+		Camera:shake()
+		Score:increment()
+	end)
 	-- Move player smoothly into view during cutscene
 	if Player.isRunningCutscene then
-		Player.x = Player.x + (10 - Player.x) * dt * 3 -- Lerp towards x = 10
-		if Player.x >= 9.9 then
-			Player.x = 10
+		Player.x = Player.x + (20 - Player.x) * dt * 3 -- Lerp towards x = 20
+		if Player.x >= 19.9 then
+			Player.x = 20
 			Player.isRunningCutscene = false
 		end
 	end
 
-	for _, enemy in ipairs(enemies) do
+	for _, enemy in ipairs(enemiesState.enemies) do
 		enemy:move(dt)
 
 		-- Check collision between Player and Enemy
 		if enemy:checkCollision(Player) then
-			enemy:destroy(enemies, ParticleSystem.activeExplosions, ParticleSystem.ps, function()
+			enemy:destroy(enemiesState.enemies, ParticleSystem.activeExplosions, ParticleSystem.ps, function()
 				Camera:shake()
 			end, true)
 			Player:takeDamage(function()
@@ -72,9 +90,9 @@ function love.update(dt)
 		end
 	end
 
-	Grid:updateGrid(enemies, Player.projectiles)
+	Grid:updateGrid(enemiesState.enemies, Player.projectiles)
 	Grid:checkCollisions(
-		enemies,
+		enemiesState.enemies,
 		Player.projectiles,
 		ParticleSystem.activeExplosions,
 		ParticleSystem.ps,
@@ -89,9 +107,9 @@ function love.update(dt)
 	)
 
 	if not Player.isRunningCutscene then
-		if spawnTimer <= 0 then
-			table.insert(enemies, Enemy:new(screenWidth, screenHeight, Player.x, Player.y))
-			spawnTimer = 0.5
+		if enemiesState.spawnTimer <= 0 then
+			table.insert(enemiesState.enemies, Enemy:new(screenWidth, screenHeight, Player.x, Player.y))
+			enemiesState.spawnTimer = enemiesState.defaultSpawnTimer
 		end
 	end
 
@@ -115,7 +133,7 @@ function love.draw()
 
 	Score:draw()
 	Player:draw()
-	Enemy:draw(enemies)
+	Enemy:draw(enemiesState.enemies)
 	Background:draw()
 
 	for _, explosion in ipairs(ParticleSystem.activeExplosions) do
@@ -175,7 +193,11 @@ end
 function love.reset()
 	Freeze.isReseting = true
 	isMouseVisible = false
-	enemies = {}
+	enemiesState = {
+		enemies = {},
+		defaultSpawnTimer = Enemy.defaultSpawnTimer,
+		spawnTimer = Enemy.defaultSpawnTimer,
+	}
 	Freeze:reset()
 	Player:reset()
 	Score:reset()

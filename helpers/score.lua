@@ -38,17 +38,13 @@ function Score:draw()
 	local textWidth = self.font:getWidth(text)
 	local textHeight = self.font:getHeight()
 	-- Set origin to the center of the text
-	local originX = textWidth / 2
-	local originY = textHeight / 2
 
-	-- Choose a position for the center of the text. For example, if you want it
-	-- to be 25 pixels from the right and 45 pixels from the top:
-	local scoreX = 50
+	local scoreX = 20
 	local scoreY = 45
 
 	-- Use love.graphics.printf with the computed origin offsets.
 	-- The "limit" is set to textWidth so the text isn't wrapped.
-	love.graphics.printf(text, scoreX, scoreY, textWidth, "center", 0, self.scale, self.scale, originX, originY)
+	love.graphics.printf(text, scoreX, scoreY, textWidth, "center", 0, self.scale, self.scale, 0, textHeight / 2)
 end
 
 return Score

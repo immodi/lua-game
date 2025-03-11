@@ -1,6 +1,8 @@
 math.randomseed(os.time())
 
-local Enemy = {}
+local Enemy = {
+	defaultSpawnTimer = 0.8,
+}
 
 Enemy.__index = Enemy -- Enable object-oriented behavior
 
@@ -27,8 +29,6 @@ function Enemy:new(screenWidth, screenHeight, targetX, targetY)
 	instance.rotation = 0 -- Initial rotation angle
 	instance.rotationSpeed = math.rad(5) / 0.1 -- Convert 5 degrees in 0.1s to radians per second
 
-	instance.polygon = instance:generatePolygon(9, instance.width / 2)
-
 	-- -- Select a random spawn side
 	local side = instance.directions[math.random(#instance.directions)]
 
@@ -49,20 +49,6 @@ function Enemy:new(screenWidth, screenHeight, targetX, targetY)
 	-- Set movement direction
 	instance:launchTo(targetX, targetY)
 	return instance
-end
-
--- Generate a random polygon (asteroid-like shape)
-function Enemy:generatePolygon(sides, radius)
-	local vertices = {}
-	for i = 1, sides do
-		local angle = (i / sides) * math.pi * 2
-		local r = radius * (0.75 + math.random() * 0.5) -- Slight variation for randomness
-		local x = math.cos(angle) * r
-		local y = math.sin(angle) * r
-		table.insert(vertices, x)
-		table.insert(vertices, y)
-	end
-	return vertices
 end
 
 function Enemy:rotate(dt)
@@ -96,11 +82,11 @@ function Enemy:isOutOfBounds(screenWidth, screenHeight)
 		or self.y > screenHeight + self.height
 end
 
-function Enemy:checkCollision(player)
-	return self.x < player.x + player.width
-		and self.x + self.width > player.x
-		and self.y < player.y + player.height
-		and self.y + self.height > player.y
+function Enemy:checkCollision(object)
+	return self.x < object.x + object.width
+		and self.x + self.width > object.x
+		and self.y < object.y + object.height
+		and self.y + self.height > object.y
 end
 
 function Enemy:destroy(enemies, activeExplosions, particleSystem, shakeCamera, applyEffects)

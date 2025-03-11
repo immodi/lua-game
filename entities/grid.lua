@@ -205,6 +205,7 @@ function Grid:checkCollisions(
 			enemies[i]:destroy(enemies, activeExplosions, particleSystem, shakeCamera, false)
 		end
 	end
+
 	for i = #projectiles, 1, -1 do
 		if projectiles[i]:isOutOfBounds(screenWidth, screenHeight) then
 			projectiles[i]:destroy(projectiles, activeExplosions, particleSystem, shakeCamera, false)
