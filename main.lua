@@ -67,6 +67,12 @@ function love.update(dt)
 		Camera:shake()
 		Score:increment()
 	end)
+	Player:spinAttack(dt, enemiesState.enemies, ParticleSystem.activeExplosions, ParticleSystem.ps, function()
+		Score:increment()
+	end, function()
+		Camera:shake()
+	end)
+
 	-- Move player smoothly into view during cutscene
 	if Player.isRunningCutscene then
 		Player.x = Player.x + (20 - Player.x) * dt * 3 -- Lerp towards x = 20
@@ -132,9 +138,9 @@ function love.draw()
 	love.graphics.translate(Camera.x, Camera.y)
 
 	Score:draw()
+	Background:draw()
 	Player:draw()
 	Enemy:draw(enemiesState.enemies)
-	Background:draw()
 
 	for _, explosion in ipairs(ParticleSystem.activeExplosions) do
 		love.graphics.setColor(1, 1, 1, 1) -- Ensure particles are drawn properly
