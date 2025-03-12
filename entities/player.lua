@@ -1,5 +1,6 @@
 local Projectile = require("entities.projectile")
 local HealthSystem = require("helpers.hearts")
+local Laser = require("entities.laser")
 local Player = {
 	x = -100,
 	y = 0,
@@ -25,6 +26,11 @@ local Player = {
 	isDead = false,
 	isRunningCutscene = true,
 	isLasering = false,
+	rotation = math.rad(90), -- Start at 0 degrees
+	spinProgress = 0,
+	isSpinning = false,
+	maxRotation = math.rad(360),
+	rotationSpeed = math.rad(360 * 3), -- 180 degrees per second (adjust as needed)
 }
 
 Player.__index = Player
@@ -34,12 +40,8 @@ function Player:init(screenWidth, screenHeight, particleSystem)
 	spriteSheet:setFilter("nearest", "nearest")
 	self.healthSystem = HealthSystem:init(self.baseHeart)
 	self.Timer = TimeToggler(0.2)
-	self.laserArea = {
-		x = self.x,
-		y = self.y,
-		width = screenWidth - self.x,
-		height = 4,
-	}
+
+	self.laserBeam = Laser:init(screenWidth)
 
 	-- Clone only if `particleSystem` exists
 	if particleSystem then
@@ -136,11 +138,9 @@ function Player:move(dt)
 		projectile:move(dt)
 	end
 
-	self.laserArea.x = self.x + self.width / 2 + self.width
-	self.laserArea.y = self.y + self.height / 2 - 4
-	self.laserArea.width = self.screenWidth - self.x
-
 	Player:animateMovement(dt)
+	self.laserBeam:update(dt, self)
+
 	self.isCritical = self.Timer(dt)
 	self.particleSystem:update(dt)
 end
@@ -167,7 +167,7 @@ function Player:checkIfDead(stopTheBgMusic)
 end
 
 function Player:shoot(screenWidth, targetY)
-	if not self.isRunningCutscene and not self.isLasering then
+	if not self.isRunningCutscene and not self.isLasering and not self.isSpinning then
 		if not self.canShoot then
 			return
 		end -- Prevent holding down to spam fire
@@ -188,16 +188,43 @@ end
 
 function Player:laser(enemies, activeExplosions, particleSystem, shakeCamera)
 	if not self.isRunningCutscene then
-		if love.keyboard.isDown("l") then
+		if love.keyboard.isDown("l") and not self.isSpinning then
 			self.isLasering = true
 			for _, enemy in ipairs(enemies) do
-				local isColliding = enemy:checkCollision(self.laserArea)
+				local isColliding = enemy:checkCollision(self.laserBeam)
 				if isColliding then
 					enemy:destroy(enemies, activeExplosions, particleSystem, shakeCamera, true)
 				end
 			end
 		else
 			self.isLasering = false
+		end
+	end
+end
+
+function Player:spinAttack(dt, enemies, activeExplosions, ps, scoreCallback, camerShakeCallback)
+	if not self.isRunningCutscene then
+		if love.keyboard.isDown("k") and not self.isLasering and not self.isSpinning then
+			self.isSpinning = true
+			self.spinProgress = 0 -- Track spin progress
+		end
+
+		-- If spinning, update rotation
+		if self.isSpinning then
+			local spinAmount = self.rotationSpeed * dt
+			self.rotation = self.rotation + spinAmount
+			self.spinProgress = self.spinProgress + spinAmount
+			self.laserBeam:spin()
+			-- Stop spinning after 360 degrees
+			if self.spinProgress >= math.rad(360) then
+				self.rotation = self.rotation - (self.spinProgress - math.rad(360)) -- Ensure exact rotation
+				for _, enemy in ipairs(enemies) do
+					enemy:destroy(enemies, activeExplosions, ps, camerShakeCallback, true)
+					scoreCallback()
+				end
+
+				self.isSpinning = false
+			end
 		end
 	end
 end
@@ -242,7 +269,7 @@ function Player:draw()
 			self.frames[self.currentFrame], -- Use the current frame
 			self.x + self.width / 2,
 			self.y + self.height / 2,
-			math.rad(90), -- Rotate 90 degrees to the right
+			self.rotation, -- Use dynamic rotation instead of static 90 degrees
 			self.scale,
 			self.scale,
 			8, -- Adjust origin X (half of 16px)
@@ -252,18 +279,8 @@ function Player:draw()
 		love.graphics.setColor(1, 1, 1, 1) -- Reset color after drawing
 	end
 
-	if love.keyboard.isDown("l") then
-		if not self.isRunningCutscene then
-			love.graphics.setColor(0, 0.119, 1, 0.5) -- Red, semi-transparent
-			love.graphics.rectangle(
-				"fill",
-				self.laserArea.x,
-				self.laserArea.y,
-				self.laserArea.width,
-				self.laserArea.height
-			)
-			love.graphics.setColor(1, 1, 1, 1) -- Reset color to white
-		end
+	if not self.isRunningCutscene and self.isLasering or self.isSpinning then
+		self.laserBeam:draw()
 	end
 
 	for _, projectile in ipairs(self.projectiles) do
