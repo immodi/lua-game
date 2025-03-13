@@ -36,8 +36,8 @@ function Laser:init()
 	}
 
 	-- Load and set up laser sound
-	instance.laserSound = love.audio.newSource("res/audio/effects/laserbeam.wav", "static")
-	instance.laserSound:setLooping(true) -- Makes it loop when played
+	instance.laserSound = love.audio.newSource("res/audio/effects/laser5.wav", "static")
+	-- instance.laserSound:setLooping(true) -- Makes it loop when played
 
 	instance.isFiring = false -- Track if laser is firing
 
@@ -55,7 +55,7 @@ function Laser:update(dt, player)
 
 	self:animate(dt)
 	self:fire()
-	self:spin()
+	-- self:spin()
 end
 
 function Laser:fire()
@@ -74,14 +74,15 @@ function Laser:fire()
 	end
 end
 
-function Laser:spin()
-	if not self.player.isRunningCutscene and self.player.isSpinning then
-		if love.keyboard.isDown("k") then
-			-- self.laserSound:play()
-			self.isFiring = true
-		end
-	end
-end
+-- function Laser:spin()
+-- 	if not self.player.isRunningCutscene and self.player.isSpinning then
+-- 		if love.keyboard.isDown("k") then
+-- 			self.isFiring = true
+-- 		else
+-- 			self.isFiring = false
+-- 		end
+-- 	end
+-- end
 
 function Laser:animate(dt)
 	self.laserAnimateTimer = self.laserAnimateTimer + dt

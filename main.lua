@@ -7,15 +7,35 @@ local ParticleSystem = require("helpers.particles")
 local Freeze = require("helpers.freeze")
 local Score = require("helpers.score")
 local BgMusic = require("helpers.bg_music")
+local Powerups = require("entities.powerup")
 local enemiesState = {
 	enemies = {},
 	defaultSpawnTimer = Enemy.defaultSpawnTimer,
 	spawnTimer = Enemy.defaultSpawnTimer,
 	MAX_DIFICULTY_TIMER = 0.4,
 }
+local powerups = {} -- Table to store active power-ups
 local shootDelay = 0.1
 local freezeTimer = 1
 local isMouseVisible = false
+local effectsCallbacks = {
+	spinAttack = function(dt)
+		if Player.spinProgress == 0 then
+			Player.isSpinning = true
+			Player:spinAttack(dt, enemiesState.enemies, ParticleSystem.activeExplosions, ParticleSystem.ps, function()
+				Score:increment()
+			end, function()
+				Camera:shake()
+			end)
+		end
+	end,
+
+	heal = function(dt)
+		if Player.healthSystem.health < Player.baseHeart then
+			Player.healthSystem:heal()
+		end
+	end,
+}
 
 function love.load()
 	ParticleSystem:init()
@@ -67,11 +87,22 @@ function love.update(dt)
 		Camera:shake()
 		Score:increment()
 	end)
+
 	Player:spinAttack(dt, enemiesState.enemies, ParticleSystem.activeExplosions, ParticleSystem.ps, function()
 		Score:increment()
 	end, function()
 		Camera:shake()
 	end)
+
+	for i = #powerups, 1, -1 do
+		local powerup = powerups[i]
+		local isPoweringUp = CheckCollision(powerup, Player)
+
+		if isPoweringUp then
+			powerup:run(dt)
+			table.remove(powerups, i) -- Remove collected power-up
+		end
+	end
 
 	-- Move player smoothly into view during cutscene
 	if Player.isRunningCutscene then
@@ -95,6 +126,8 @@ function love.update(dt)
 			end)
 		end
 	end
+
+	Powerups:update(powerups, dt, screenWidth, screenHeight, effectsCallbacks)
 
 	Grid:updateGrid(enemiesState.enemies, Player.projectiles)
 	Grid:checkCollisions(
@@ -145,6 +178,10 @@ function love.draw()
 	for _, explosion in ipairs(ParticleSystem.activeExplosions) do
 		love.graphics.setColor(1, 1, 1, 1) -- Ensure particles are drawn properly
 		love.graphics.draw(explosion)
+	end
+
+	for _, p in ipairs(powerups) do
+		p:draw()
 	end
 
 	love.graphics.pop() -- Restore transformation after shake
@@ -204,6 +241,7 @@ function love.reset()
 		defaultSpawnTimer = Enemy.defaultSpawnTimer,
 		spawnTimer = Enemy.defaultSpawnTimer,
 	}
+	powerups = {}
 	Freeze:reset()
 	Player:reset()
 	Score:reset()

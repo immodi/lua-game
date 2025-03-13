@@ -30,7 +30,7 @@ local Player = {
 	spinProgress = 0,
 	isSpinning = false,
 	maxRotation = math.rad(360),
-	rotationSpeed = math.rad(360 * 3), -- 180 degrees per second (adjust as needed)
+	rotationSpeed = math.rad(360 * 2.5), -- 180 degrees per second (adjust as needed)
 }
 
 Player.__index = Player
@@ -66,6 +66,7 @@ function Player:init(screenWidth, screenHeight, particleSystem)
 	}
 
 	self.laserSound = love.audio.newSource("res/audio/effects/laser.wav", "static")
+	self.spinLaserSound = love.audio.newSource("res/audio/effects/laser12.wav", "static")
 
 	-- Apply scale
 	self.width = 16 * self.scale
@@ -204,26 +205,27 @@ end
 
 function Player:spinAttack(dt, enemies, activeExplosions, ps, scoreCallback, camerShakeCallback)
 	if not self.isRunningCutscene then
-		if love.keyboard.isDown("k") and not self.isLasering and not self.isSpinning then
-			self.isSpinning = true
-			self.spinProgress = 0 -- Track spin progress
-		end
-
 		-- If spinning, update rotation
-		if self.isSpinning then
+		if self.isSpinning and not self.isLasering then
+			self.spinLaserSound:play()
 			local spinAmount = self.rotationSpeed * dt
 			self.rotation = self.rotation + spinAmount
 			self.spinProgress = self.spinProgress + spinAmount
-			self.laserBeam:spin()
 			-- Stop spinning after 360 degrees
 			if self.spinProgress >= math.rad(360) then
-				self.rotation = self.rotation - (self.spinProgress - math.rad(360)) -- Ensure exact rotation
 				for _, enemy in ipairs(enemies) do
 					enemy:destroy(enemies, activeExplosions, ps, camerShakeCallback, true)
 					scoreCallback()
 				end
 
+				for i = #enemies, 1, -1 do
+					table.remove(enemies, i) -- Remove all enemies
+				end
+
 				self.isSpinning = false
+				self.rotation = math.rad(90)
+				self.spinProgress = 0
+				self.spinLaserSound:stop()
 			end
 		end
 	end
@@ -245,6 +247,10 @@ function Player:reset()
 	self.isCritical = false
 	self.isRunningCutscene = true
 	self.isLasering = false
+	self.rotation = math.rad(90) -- Start at 0 degrees
+	self.spinProgress = 0
+	self.isSpinning = false
+	self.maxRotation = math.rad(360)
 end
 
 function Player:draw()
