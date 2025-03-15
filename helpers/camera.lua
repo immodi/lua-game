@@ -5,6 +5,14 @@ local Camera = {
 	shakeDuration = 0,
 }
 
+Camera.__index = Camera
+
+function Camera:init()
+	local instance = setmetatable({}, Camera)
+
+	return instance
+end
+
 function Camera:update(dt)
 	if self.shakeDuration > 0 then
 		self.shakeDuration = self.shakeDuration - dt

@@ -4,8 +4,14 @@ local Score = {
 	font = nil,
 }
 
+Score.__index = Score
+
 function Score:init()
-	self.font = love.graphics.newFont("res/fonts/font.ttf", 42) -- Change path if needed
+	local instance = setmetatable({}, Score)
+
+	instance.font = love.graphics.newFont("res/fonts/font.ttf", 42) -- Change path if needed
+
+	return instance
 end
 
 function Score:update(dt)
@@ -17,7 +23,7 @@ function Score:update(dt)
 end
 
 function Score:increment()
-	self.value = self.value + 1
+	self.value = self.value + 20
 end
 
 function Score:increase(amount)

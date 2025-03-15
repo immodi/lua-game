@@ -7,7 +7,7 @@ local Powerup = {
 	speed = 200, -- Constant speed towards x = 0
 	bobbingFrequency = 3,
 	bobbingAmplitude = 30,
-	spawnRate = 0.0005,
+	spawnRate = 0.0009,
 	powerUpCallback = nil,
 	powerUpSound = nil,
 }

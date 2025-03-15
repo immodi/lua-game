@@ -8,24 +8,40 @@ local Freeze = require("helpers.freeze")
 local Score = require("helpers.score")
 local BgMusic = require("helpers.bg_music")
 local Powerups = require("entities.powerup")
+local Boss = require("entities.boss")
+local bgState = {
+	bgMusic = {},
+	score = {},
+	camera = {},
+	grid = {},
+}
+
 local enemiesState = {
 	enemies = {},
+	isSpawning = true,
 	defaultSpawnTimer = Enemy.defaultSpawnTimer,
 	spawnTimer = Enemy.defaultSpawnTimer,
 	MAX_DIFICULTY_TIMER = 0.4,
+	lastCheckedBgState = { score = 0 }, -- Initialize this
 }
+
+local bossState = {
+	boss = {},
+}
+
 local powerups = {} -- Table to store active power-ups
 local shootDelay = 0.1
 local freezeTimer = 1
 local isMouseVisible = false
+
 local effectsCallbacks = {
 	spinAttack = function(dt)
 		if Player.spinProgress == 0 then
 			Player.isSpinning = true
 			Player:spinAttack(dt, enemiesState.enemies, ParticleSystem.activeExplosions, ParticleSystem.ps, function()
-				Score:increment()
+				bgState.score:increment()
 			end, function()
-				Camera:shake()
+				bgState.camera:shake()
 			end)
 		end
 	end,
@@ -39,14 +55,17 @@ local effectsCallbacks = {
 
 function love.load()
 	ParticleSystem:init()
-	Score:init()
+	bgState.score = Score:init()
+	bgState.camera = Camera:init()
+	bgState.bgMusic = BgMusic:init()
 	love.window.setMode(0, 0, { fullscreen = true })
 	love.mouse.setVisible(isMouseVisible)
 	local screenWidth, screenHeight = love.graphics.getDimensions()
 
 	Player:init(screenWidth, screenHeight, ParticleSystem.ps:clone())
 	Background:init(screenWidth, screenHeight)
-	BgMusic:init()
+	bossState.boss = Boss:init(screenWidth, screenHeight)
+	bgState.grid = Grid:init()
 end
 
 function love.update(dt)
@@ -55,17 +74,36 @@ function love.update(dt)
 	enemiesState.spawnTimer = enemiesState.spawnTimer - dt
 	shootDelay = shootDelay - dt
 	Background:animate(dt)
-	Score:update(dt)
+	bgState.score:update(dt)
 
-	if enemiesState.lastCheckedScore == nil then
-		enemiesState.lastCheckedScore = 0
+	if enemiesState.lastCheckedBgState.score == nil then
+		enemiesState.lastCheckedBgState.score = 0
 	end
 
-	if Score.value % 100 == 0 and Score.value ~= 0 and Score.value ~= enemiesState.lastCheckedScore then
+	if
+		bgState.score.value % 100 == 0
+		and bgState.score.value ~= 0
+		and bgState.score.value ~= enemiesState.lastCheckedBgState.score
+	then
 		if enemiesState.defaultSpawnTimer > enemiesState.MAX_DIFICULTY_TIMER then
 			enemiesState.defaultSpawnTimer = math.max(0.1, enemiesState.defaultSpawnTimer - 0.1)
 		end
-		enemiesState.lastCheckedScore = Score.value
+		enemiesState.lastCheckedBgState.score = bgState.score.value
+	end
+
+	local base = math.floor(bgState.score.value / 100) * 100 -- Get the nearest lower multiple of 100
+	if
+		bgState.score.value >= base
+		and bgState.score.value <= base + 10
+		and base ~= 0
+		and not bossState.boss.isSpawned
+		and not bossState.boss.isDying
+	then
+		bossState.boss:spawn(function()
+			enemiesState.isSpawning = true
+			bossState.boss:reset()
+			bossState.phaseTwo = false
+		end)
 	end
 
 	if Player.healthSystem.health <= 0 then
@@ -73,8 +111,8 @@ function love.update(dt)
 		isMouseVisible = true
 	end
 
-	Camera:update(dt)
-	BgMusic:update()
+	bgState.camera:update(dt)
+	bgState.bgMusic:update()
 
 	if shootDelay <= 0 then
 		Player:shoot(screenWidth, Player.y - Player.height / 2)
@@ -84,14 +122,14 @@ function love.update(dt)
 	Player:move(dt)
 	Player:broderPhysics(screenWidth, screenHeight)
 	Player:laser(enemiesState.enemies, ParticleSystem.activeExplosions, ParticleSystem.ps, function()
-		Camera:shake()
-		Score:increment()
+		bgState.camera:shake()
+		bgState.score:increment()
 	end)
 
 	Player:spinAttack(dt, enemiesState.enemies, ParticleSystem.activeExplosions, ParticleSystem.ps, function()
-		Score:increment()
+		bgState.score:increment()
 	end, function()
-		Camera:shake()
+		bgState.camera:shake()
 	end)
 
 	for i = #powerups, 1, -1 do
@@ -119,38 +157,83 @@ function love.update(dt)
 		-- Check collision between Player and Enemy
 		if enemy:checkCollision(Player) then
 			enemy:destroy(enemiesState.enemies, ParticleSystem.activeExplosions, ParticleSystem.ps, function()
-				Camera:shake()
+				bgState.camera:shake()
 			end, true)
 			Player:takeDamage(function()
-				BgMusic:switchTracks()
+				bgState.bgMusic:switchTracks()
 			end)
 		end
 	end
 
-	Powerups:update(powerups, dt, screenWidth, screenHeight, effectsCallbacks)
+	local randomEnemyX, randomEnemyY, enemeySpeed = bossState.boss:getPhaseOneEnemyPos()
+	if enemiesState.isSpawning then
+		bgState.grid:updateGrid(enemiesState.enemies, Player.projectiles)
+		bgState.grid:checkCollisions(
+			enemiesState.enemies,
+			Player.projectiles,
+			ParticleSystem.activeExplosions,
+			ParticleSystem.ps,
+			screenWidth + 100,
+			screenHeight + 100,
+			function()
+				bgState.camera:shake()
+			end,
+			function()
+				bgState.score:increment()
+			end
+		)
 
-	Grid:updateGrid(enemiesState.enemies, Player.projectiles)
-	Grid:checkCollisions(
-		enemiesState.enemies,
-		Player.projectiles,
-		ParticleSystem.activeExplosions,
-		ParticleSystem.ps,
-		screenWidth + 100,
-		screenHeight + 100,
-		function()
-			Camera:shake()
-		end,
-		function()
-			Score:increment()
-		end
-	)
-
-	if not Player.isRunningCutscene then
-		if enemiesState.spawnTimer <= 0 then
-			table.insert(enemiesState.enemies, Enemy:new(screenWidth, screenHeight, Player.x, Player.y))
-			enemiesState.spawnTimer = enemiesState.defaultSpawnTimer
+		if not Player.isRunningCutscene then
+			if enemiesState.spawnTimer <= 0 then
+				table.insert(
+					enemiesState.enemies,
+					Enemy:new(
+						screenWidth,
+						screenHeight,
+						Player.x,
+						Player.y,
+						randomEnemyX,
+						randomEnemyY,
+						enemeySpeed,
+						bossState.boss.inPhaseTwo
+					)
+				)
+				enemiesState.spawnTimer = enemiesState.defaultSpawnTimer
+			end
 		end
 	end
+
+	if bossState.boss.isSpawned then
+		-- Check collision between Player and Boss
+		if CheckCollision(Player, bossState.boss) then
+			Player:takeDamage(function()
+				bgState.bgMusic:switchTracks()
+			end)
+		end
+
+		-- Check collision between laser and Boss
+		if Player.isLasering then
+			if CheckCollision(Player.laserBeam, bossState.boss) then
+				bossState.boss:takeDamage(function()
+					bgState.camera:shake()
+				end, function()
+					enemiesState.isSpawning = false
+				end)
+			end
+		end
+
+		for _, projectile in ipairs(Player.projectiles) do
+			if CheckCollision(projectile, bossState.boss) then
+				bossState.boss:takeDamage(function()
+					bgState.camera:shake()
+				end, function()
+					enemiesState.isSpawning = false
+				end)
+			end
+		end
+	end
+
+	Powerups:update(powerups, dt, screenWidth, screenHeight, effectsCallbacks)
 
 	-- Update explosions
 	for i = #ParticleSystem.activeExplosions, 1, -1 do
@@ -161,6 +244,8 @@ function love.update(dt)
 			table.remove(ParticleSystem.activeExplosions, i)
 		end
 	end
+
+	bossState.boss:update(dt)
 end
 
 function love.draw()
@@ -168,9 +253,9 @@ function love.draw()
 	love.graphics.push() -- Save the transformation
 	love.graphics.setColor(1, 1, 1, 1) -- Reset color to full brightness
 
-	love.graphics.translate(Camera.x, Camera.y)
+	love.graphics.translate(bgState.camera.x, bgState.camera.y)
 
-	Score:draw()
+	bgState.score:draw()
 	Background:draw()
 	Player:draw()
 	Enemy:draw(enemiesState.enemies)
@@ -184,6 +269,8 @@ function love.draw()
 		p:draw()
 	end
 
+	bossState.boss:draw()
+	-- bgState.grid:draw()
 	love.graphics.pop() -- Restore transformation after shake
 end
 
@@ -238,12 +325,16 @@ function love.reset()
 	isMouseVisible = false
 	enemiesState = {
 		enemies = {},
+		isSpawning = true,
 		defaultSpawnTimer = Enemy.defaultSpawnTimer,
 		spawnTimer = Enemy.defaultSpawnTimer,
+		MAX_DIFICULTY_TIMER = 0.4,
+		lastCheckedBgState = { score = 0 }, -- Initialize this
 	}
 	powerups = {}
 	Freeze:reset()
 	Player:reset()
-	Score:reset()
-	BgMusic:reset()
+	bgState.score:reset()
+	bgState.bgMusic:reset()
+	bossState.boss:reset()
 end

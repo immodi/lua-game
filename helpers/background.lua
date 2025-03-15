@@ -3,7 +3,7 @@ math.randomseed(os.time())
 local Background = {
 	currentFrame = 1, -- Start with the first frame
 	animationTimer = 0, -- Timer for animation
-	animationSpeed = math.random(0.6, 0.8), -- Seconds per frame
+	animationSpeed = math.random(0.3, 0.8), -- Seconds per frame
 	scale = math.random(0.8, 1.4),
 	stars = {},
 	starsCount = 20, -- Number of stars

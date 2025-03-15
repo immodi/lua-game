@@ -5,17 +5,23 @@ local BgMusic = {
 	isMenu = false, -- Always starts in game mode
 }
 
+BgMusic.__index = BgMusic
+
 function BgMusic:init()
-	self.tracks = {
+	local instance = setmetatable({}, BgMusic)
+
+	instance.tracks = {
 		love.audio.newSource("res/audio/bg/track_23.ogg", "stream"),
 		love.audio.newSource("res/audio/bg/orbital_colossus.mp3", "stream"),
 	}
 
-	self.menuTracks = {
+	instance.menuTracks = {
 		love.audio.newSource("res/audio/menu/track_21.ogg", "stream"),
 	}
 
-	self.tracks[self.currentTrackIndex]:play() -- Start playing game music by default
+	instance.tracks[instance.currentTrackIndex]:play() -- Start playing game music by default
+
+	return instance
 end
 
 function BgMusic:update()
