@@ -6,6 +6,7 @@ local Laser = {
 	currentLaserFrame = 1,
 	laserAnimateTimer = 0,
 	laserAnimateSpeed = 0.1,
+	isMuted = false,
 }
 Laser.__index = Laser
 
@@ -35,9 +36,10 @@ function Laser:init()
 		),
 	}
 
+	instance.isMuted = GameSettings.isSoundEffectsMuted or Laser.isMuted
+
 	-- Load and set up laser sound
 	instance.laserSound = love.audio.newSource("res/audio/effects/laser5.wav", "static")
-	-- instance.laserSound:setLooping(true) -- Makes it loop when played
 
 	instance.isFiring = false -- Track if laser is firing
 
@@ -45,6 +47,8 @@ function Laser:init()
 end
 
 function Laser:update(dt, player)
+	self.isMuted = GameSettings.isSoundEffectsMuted or Laser.isMuted
+
 	self.player = player
 	self.x = player.x + player.width * 2 - player.width / 2 -- Fix: Start at the right edge of the player
 	self.y = player.y + player.height / 2 - 4 -- Center laser vertically
@@ -62,12 +66,16 @@ function Laser:fire()
 	if not self.player.isRunningCutscene and self.player.isLasering then
 		if love.keyboard.isDown("l") then
 			if not self.isFiring then
-				self.laserSound:play()
+				if not self.isMuted then
+					self.laserSound:play()
+				end
 				self.isFiring = true
 			end
 		else
 			if self.isFiring then
-				self.laserSound:stop()
+				if self.laserSound:isPlaying() then
+					self.laserSound:stop()
+				end
 				self.isFiring = false
 			end
 		end

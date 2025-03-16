@@ -31,6 +31,7 @@ local Player = {
 	isSpinning = false,
 	maxRotation = math.rad(360),
 	rotationSpeed = math.rad(360 * 2.5), -- 180 degrees per second (adjust as needed)
+	isMuted = false,
 }
 
 Player.__index = Player
@@ -41,6 +42,7 @@ function Player:init(screenWidth, screenHeight, particleSystem)
 	self.healthSystem = HealthSystem:init(self.baseHeart)
 	self.Timer = TimeToggler(0.2)
 
+	self.isMuted = GameSettings.isSoundEffectsMuted or Player.isMuted
 	self.laserBeam = Laser:init(screenWidth)
 
 	-- Clone only if `particleSystem` exists
@@ -113,6 +115,8 @@ function Player:broderPhysics(screenWidth, screenHeight)
 end
 
 function Player:move(dt)
+	self.isMuted = GameSettings.isSoundEffectsMuted or Player.isMuted
+
 	if not self.isRunningCutscene then
 		if love.keyboard.isDown("d") or love.keyboard.isDown("right") then
 			self.vx = self.vx + self.ax * dt
@@ -178,9 +182,14 @@ function Player:shoot(screenWidth, targetY)
 			Projectile:spawn(screenWidth, targetY, self.x + self.width, self.y + self.height / 2.5)
 		)
 
-		-- Restart sound from the beginning
-		self.laserSound:stop()
-		self.laserSound:play()
+		if not self.isMuted then
+			self.laserSound:play()
+			if self.laserSound:isPlaying() then
+				-- Restart sound from the beginning
+				self.laserSound:stop()
+				self.laserSound:play()
+			end
+		end
 
 		-- Prevent immediate re-firing until key is released
 		self.canShoot = false
@@ -207,7 +216,10 @@ function Player:spinAttack(dt, enemies, activeExplosions, ps, scoreCallback, cam
 	if not self.isRunningCutscene then
 		-- If spinning, update rotation
 		if self.isSpinning and not self.isLasering then
-			self.spinLaserSound:play()
+			if not self.isMuted then
+				self.spinLaserSound:play()
+			end
+
 			local spinAmount = self.rotationSpeed * dt
 			self.rotation = self.rotation + spinAmount
 			self.spinProgress = self.spinProgress + spinAmount
@@ -225,7 +237,9 @@ function Player:spinAttack(dt, enemies, activeExplosions, ps, scoreCallback, cam
 				self.isSpinning = false
 				self.rotation = math.rad(90)
 				self.spinProgress = 0
-				self.spinLaserSound:stop()
+				if self.spinLaserSound:isPlaying() then
+					self.spinLaserSound:stop()
+				end
 			end
 		end
 	end
@@ -251,6 +265,7 @@ function Player:reset()
 	self.spinProgress = 0
 	self.isSpinning = false
 	self.maxRotation = math.rad(360)
+	self.isMuted = false
 end
 
 function Player:draw()

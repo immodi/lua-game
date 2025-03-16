@@ -3,6 +3,7 @@ math.randomseed(os.time())
 local Enemy = {
 	defaultSpawnTimer = 0.8,
 	isSpecial = false,
+	isMuted = false,
 }
 
 Enemy.__index = Enemy -- Enable object-oriented behavior
@@ -18,6 +19,8 @@ function Enemy:new(screenWidth, screenHeight, targetX, targetY, spawnX, spawnY, 
 	}
 	instance.spriteSheet = spriteSheet
 	instance.sprite = love.graphics.newQuad(64, 0, 16, 16, spriteSheet:getDimensions())
+
+	instance.isMuted = GameSettings.isSoundEffectsMuted or Enemy.isMuted
 
 	-- Determine scale based on whether it's a special enemy
 	instance.isSpecial = isSpecial or Enemy.isSpecial
@@ -75,6 +78,7 @@ function Enemy:move(dt)
 	self.x = self.x + self.vx * dt
 	self.y = self.y + self.vy * dt
 
+	self.isMuted = GameSettings.isSoundEffectsMuted or Enemy.isMuted
 	self:rotate(dt)
 end
 
@@ -135,7 +139,9 @@ function Enemy:destroy(enemies, activeExplosions, particleSystem, shakeCamera, a
 	if applyEffects then
 		shakeCamera()
 		self:emitParticles(activeExplosions, particleSystem)
-		self.tracks[math.random(1, 2)]:play()
+		if not self.isMuted then
+			self.tracks[math.random(1, 2)]:play()
+		end
 	end
 
 	-- Loop backwards to safely remove the enemy

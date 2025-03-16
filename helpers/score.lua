@@ -23,7 +23,7 @@ function Score:update(dt)
 end
 
 function Score:increment()
-	self.value = self.value + 20
+	self.value = self.value + 1
 end
 
 function Score:increase(amount)

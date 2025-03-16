@@ -10,6 +10,7 @@ local Powerup = {
 	spawnRate = 0.0009,
 	powerUpCallback = nil,
 	powerUpSound = nil,
+	isMuted = false,
 }
 
 local PowerUpsSprites = {
@@ -33,6 +34,8 @@ function Powerup:init(randomKey, powerUpCallback)
 	instance.powerUpCallback = powerUpCallback
 	instance.powerUpSound = PowerUpsSounds[randomKey]
 
+	instance.isMuted = GameSettings.isSoundEffectsMuted or Powerup.isMuted
+
 	return instance
 end
 
@@ -54,10 +57,12 @@ function Powerup:spawn(screenWidth, screenHeight)
 end
 
 function Powerup:update(powerups, dt, screenWidth, screenHeight, effectsCallbacks)
+	self.isMuted = GameSettings.isSoundEffectsMuted or Powerup.isMuted
+
 	if math.random() < self.spawnRate then
 		local randomKey = Powerup:getRandomKey()
 
-		local p = Powerup:init(randomKey, effectsCallbacks[randomKey])
+		local p = Powerup:init(randomKey, effectsCallbacks[randomKey], self.isMuted)
 		p:spawn(screenWidth, screenHeight)
 		table.insert(powerups, p)
 	end
@@ -74,7 +79,9 @@ function Powerup:update(powerups, dt, screenWidth, screenHeight, effectsCallback
 end
 
 function Powerup:run(dt)
-	self.powerUpSound:play()
+	if not self.isMuted then
+		self.powerUpSound:play()
+	end
 	self.powerUpCallback(dt)
 end
 
