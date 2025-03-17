@@ -4,3 +4,5 @@ releases/*
 *.love
 *.zip
 *.exe
+package
+conf.lua
